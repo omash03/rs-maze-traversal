@@ -4,13 +4,19 @@
     CIT360
 */
 
-use crossterm;
-use crossterm::event::{Event, KeyCode, KeyEvent};
+mod tui_layout; 
+mod dfs_traversal;
+mod bfs_traversal;
+use maze_traversal::maze;
+use std::io::Write;
+use tui_layout::draw;
 
-use ratatui::{self, Frame};
-use ratatui::text::Text;
-use ratatui::layout::*;
-use ratatui::widgets::*;
+// Cross platform terminal backend used by RataTUI
+use crossterm;
+use crossterm::event::{Event, KeyCode};
+
+// https://docs.rs/ratatui/latest/ratatui/
+use ratatui;
 
 // Logging since we can't capture stdout/stderr in TUI mode
 use simplelog::{CombinedLogger, Config, LevelFilter, WriteLogger};
@@ -25,6 +31,7 @@ use log::{info, warn, error, debug};
 struct TermRestore;
 impl Drop for TermRestore {
     fn drop(&mut self) {
+        // _ as name since we don't care about the result
         let _ = crossterm::terminal::disable_raw_mode();
         let _ = crossterm::execute!(
             std::io::stdout(),
@@ -39,52 +46,59 @@ impl Drop for TermRestore {
 // dyn Error is a trait object for error handling
 fn main() -> Result<(), Box<dyn std::error::Error>> {
 
+    let buttons = tui_layout::get_buttons();
+
     // Setup logging to file
     let log_file = File::create("out.log")?;
     CombinedLogger::init(vec![
         WriteLogger::new(LevelFilter::Debug, Config::default(), log_file),
     ])?;
 
-    // Buttons
-    let buttons = [
-        "1: Generate Maze",
-        "2: Stack Traversal",
-        "3: Queue Traversal",
-        "4: Show Debug",
-        "5: Exit",
-    ];
-
-    // Setup terminal
+    // Setup terminal and ensure it is restored on exit
     crossterm::terminal::enable_raw_mode()?;
-    let _term_guard = TermRestore; // Ensure terminal is restored on exit
+    let _term_guard = TermRestore; // Keep in scope for duration of execution
     let mut terminal = ratatui::init();
     let mut selected: usize = 0;
 
     // Clear terminal before entering TUI mode
     terminal.clear()?;
 
-
+    // Rendering loop
     loop {
         // Draw UI with current selection
-        terminal.draw(|f| draw(f, &buttons, selected))?;
+        terminal.draw(|f| draw(f, selected))?;
 
-        // Handle input
+        // Handle input (only check every 500ms to reduce CPU usage)
         if crossterm::event::poll(std::time::Duration::from_millis(500))? {
             match crossterm::event::read()? {
                 Event::Key(key) => match key.code {
+
+                    // Escape sequence for TUI
                     KeyCode::Char('q') | KeyCode::Esc => {
                         info!("Exiting on 'q' or Esc");
                         break;
                     }
+
+                    // Number keys to select buttons
                     KeyCode::Char(c) if c.is_ascii_digit() => {
                         let idx = (c as u8 - b'1') as usize;
                         if idx < buttons.len() {
                             selected = idx;
                             info!("Triggered: {} ({})", buttons[selected], selected + 1);
 
-                            // check by index (5th button is Exit) or use contains("Exit")
-                            if idx == 4 {
-                                break;
+                            // check by index to trigger functions
+                            match idx {
+                                // 1: Generate Maze -> write a simple maze text file
+                                0 => {
+                                    // TODO
+                                }
+                                // 2: Stack Traversal (DFS)
+                                1 => dfs_traversal::run_dfs(),
+                                // 3: Queue Traversal (BFS)
+                                2 => bfs_traversal::run_bfs(),
+                                4 => {} //show_slowed
+                                5 => break,
+                                _ => {}
                             }
                         }
                     }
@@ -96,97 +110,4 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     }
     Ok(())
-}
-
-fn draw(f: &mut Frame, buttons: &[&str], selected: usize) {
-    // Get the size of the terminal
-    let size = f.area();
-
-
-    // Compute button area
-    let button_width = size.width;
-    let button_height = size.height / 8;
-    let button_x = size.x + (size.width - button_width) / 2;
-    let button_y = size.height.saturating_sub(button_height);
-
-    let button_area = Rect {
-        x: button_x,
-        y: button_y,
-        width: button_width,
-        height: button_height,
-    };
-
-    // Compute content area for maze inside the border (inset by 1 on all sides)
-    let content_x = size.x + 1;
-    let content_y= size.y + 1;
-    let content_width: u16 = size.width.saturating_sub(2);
-    let content_height: u16 = size.height.saturating_sub(2);
-
-    let maze_area = Rect {
-        x: content_x,
-        y: content_y,
-        width: content_width,
-        height: content_height.saturating_sub(button_height),
-    };
-
-
-    // Rendering
-
-    // Draw an outer border block with title
-    let block = Block::default()
-        .title("Maze Traversal")
-        .borders(Borders::ALL);
-    f.render_widget(block, size);
-
-
-    // Container for maze
-    let maze_block = Block::default()
-        .borders(Borders::ALL);
-
-    f.render_widget(maze_block, maze_area);
-    // End maze container
-
-    
-    let buttons_block = Block::default()
-        .title("Controls")
-        .borders(Borders::ALL);
-    f.render_widget(buttons_block, button_area);
-
-    // Split Button area horizontally into equal parts for each button
-    let mut constraints = Vec::new();
-    for _ in 0..buttons.len() {
-        constraints.push(Constraint::Percentage(100 / buttons.len() as u16));
-    }
-    let chunks = Layout::default()
-        .direction(Direction::Horizontal)
-        .constraints(constraints)
-        .margin(0)
-        .split(button_area);
-
-    // Render each button inside its chunk
-    for (i, &label) in buttons.iter().enumerate() {
-        let button = if i == selected {
-            // Highlight selected button
-            Paragraph::new(label)
-                .block(Block::default().borders(Borders::ALL).border_style(ratatui::style::Style::default().fg(ratatui::style::Color::Yellow)))
-                .alignment(Alignment::Center)
-        } else {
-            Paragraph::new(label)
-                .block(Block::default().borders(Borders::ALL))
-                .alignment(Alignment::Center)
-        };
-        f.render_widget(button, chunks[i]);
-    }
-
-    let text = Text::from("Press ESC key to exit...");
-    let paragraph = Paragraph::new(text)
-        .block(Block::default().borders(Borders::NONE))
-        .alignment(Alignment::Center);
-    let area = Rect {
-        x: size.x,
-        y: size.y + size.height / 2 - 1,
-        width: size.width,
-        height: 3,
-    };
-    f.render_widget(paragraph, area);
 }
