@@ -23,27 +23,47 @@ pub struct Cell {
 impl Maze {
     /// Create a new maze structure (cells initialized as walls)
     pub fn new(width: usize, height: usize) -> Self {
-        let grid = Vec::with_capacity(height);
+        let mut grid = Vec::with_capacity(width);
         
-        for y in 0..height {
-            let mut row = Vec::with_capacity(width);
+        // X axis is rows
+        for x in 0..width {
 
-            for x in 0..width {
+            let mut row = Vec::with_capacity(height);
+
+            // Y axis is columns
+            for y in 0..height {
                 row.push(Cell {
                     x,
                     y,
                     path: false,
-                    walls: [true; 4],
+                    walls: [false; 4],
                     visited: false
                 });
             }
+            grid.push(row);
         }
         Maze{width, height, grid}
     }
 
-    /// Generate a maze using randomized DFS (recursive backtracker implemented with a stack).
-    /// After generation, `path` will be true for carved cells.
-    pub fn generate(&mut self, seed: u64) {
-        // TODO
+    /// Not really a maze just wanted to see what random generation of walls looks like.
+    pub fn basic_generate(&mut self, seed: u64) {
+
+        let mut rng = StdRng::seed_from_u64(seed);
+
+        // Loop through row
+        for y in 0..self.height {
+            // Loop through column
+            for x in 0..self.width {
+
+                let cell = &mut self.grid[y][x];
+                cell.path = rng.gen_bool(0.60);
+
+            }
+        }
+    }
+
+    pub fn dfs_generate(&mut self, seed: u64) {
+        let mut rng = StdRng::seed_from_u64(seed);
+
     }
 }

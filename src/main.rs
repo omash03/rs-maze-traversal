@@ -93,9 +93,9 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
                                     // TODO
                                 }
                                 // 2: Stack Traversal (DFS)
-                                1 => dfs_traversal::run_dfs(),
+                                //1 => dfs_traversal::run_dfs(),
                                 // 3: Queue Traversal (BFS)
-                                2 => bfs_traversal::run_bfs(),
+                                //2 => bfs_traversal::run_bfs(),
                                 4 => {} //show_slowed
                                 5 => break,
                                 _ => {}
