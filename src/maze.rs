@@ -1,5 +1,3 @@
-use std::cell;
-
 /// Maze Initialization and Generation
 
 use rand::prelude::*;
@@ -9,6 +7,8 @@ use rand::seq::SliceRandom;
 pub struct Maze {
     pub width: usize,
     pub height: usize,
+    pub start_cell: (usize, usize),
+    pub end_cell: (usize, usize),
     // Outer vector is rows (y), inner vector is columns (x)
     // outer  vector stores pointers to heap-allocated inner vectors
     pub grid: Vec<Vec<Cell>>,
@@ -20,13 +20,16 @@ pub struct Cell {
     pub y: usize,
     pub start: bool,
     pub end: bool,
-    pub path: [bool; 4], // top, right, bottom, left (clockwise)
+    pub path: bool, // part of solution path
     pub walls: [bool; 4], // top, right, bottom, left (clockwise)
     pub visited: bool,
 }
 
+
+
 impl Maze {
     /// Create a new maze structure (cells initialized with walls)
+
     pub fn new(width: usize, height: usize) -> Self {
         let mut grid = Vec::with_capacity(width);
         
@@ -42,14 +45,14 @@ impl Maze {
                     y,
                     start: false,
                     end: false,
-                    path: [false; 4],
+                    path: false,
                     walls: [true; 4],
                     visited: false
                 });
             }
             grid.push(row);
         }
-        Maze{width, height, grid}
+        Maze{width, height, grid, start_cell: (0,0), end_cell: (0,0)}
     }
 
     /// DFS Maze Generation
@@ -63,9 +66,20 @@ impl Maze {
         let start_x = rng.gen_range(0..self.width);
         let start_y = rng.gen_range(0..self.height);
         self.grid[start_x][start_y].start = true;
+        self.start_cell = (start_x, start_y);
 
         self.dfs_recurse(start_x, start_y, &mut rng, &mut cells_visited);
     }
+
+
+    // Directions to move to neighboring cells: (dx, dy, wall_index)
+    // Maze starts at top-left corner (0,0) so -1 is up/left, +1 is down/right
+    pub const DIRECTIONS: [(isize, isize, usize); 4] = [
+        (0isize, -1isize, 0), // Top
+        (1isize, 0isize, 1),  // Right
+        (0isize, 1isize, 2),  // Bottom
+        (-1isize, 0isize, 3)  // Left
+    ];
 
     /// DFS Recursive Algorithm
     /// This is probably not very efficient but i can understand it lol
@@ -80,23 +94,17 @@ impl Maze {
         if *cells_visited == self.width * self.height {
             // Mark as end if all cells have been visited
             self.grid[x][y].end = true;
+            self.end_cell = (x, y);
         }
 
         // Unvisited neighbors stack
         let mut neighbors = Vec::new();
 
-        // Direction for unvisited neighbors
-        let directions = [
-            (0isize, -1isize, 0), // Top
-            (1isize, 0isize, 1),  // Right
-            (0isize, 1isize, 2),  // Bottom
-            (-1isize, 0isize, 3)  // Left
-        ];
-
         // Check all four directions from current cell to store unvisited neighbors
-        for &(dx, dy, dir) in &directions {
+        for &(dx, dy, dir) in &Self::DIRECTIONS {
 
             // neighbor x and y coordinates
+            // E.g. x=2,y=2 and dx=0,dy=-1 (top) => nx=2,ny=1
             let nx = x as isize + dx;
             let ny = y as isize + dy;
 
@@ -112,17 +120,32 @@ impl Maze {
         // Choose a random unvisited neighbor
         neighbors.shuffle(rng);
 
-        // For each unvisited neighbor (but only carve one path at a time)
+        // For each unvisited neighbor
         for (nx, ny, dir) in neighbors {
+
+            // Base case: if neighbor is unvisited
             if !self.grid[nx][ny].visited {
                 // Remove walls between current cell and neighbor
                 self.grid[x][y].walls[dir] = false; // remove wall in current cell
+
+                // Adding 2 and taking the remainder of 4 gives the opposite wall direction
+                // 0+2=2%4=2 (top->bottom), 1+2=3%4=3 (right->left), etc.
                 self.grid[nx][ny].walls[(dir + 2) % 4] = false; // remove opposite wall in neighbor cell
 
                 // Recurse into neighbor
                 self.dfs_recurse(nx, ny, rng, cells_visited);
                 // After recursion returns, loop continues to next neighbor
                 // This only happens if that path is exhausted (backtracking)
+            }
+        }
+    }
+
+    // Helper function so we can run multiple traversals on the same maze
+    pub fn reset_visited(&mut self) {
+        for x in 0..self.width {
+            for y in 0..self.height {
+                self.grid[x][y].visited = false;
+                self.grid[x][y].path = false;
             }
         }
     }
