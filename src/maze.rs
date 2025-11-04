@@ -60,13 +60,13 @@ impl Maze {
     /// DFS Maze Generation
     pub fn dfs_gen(&mut self, open_percent: u8) {
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let mut cells_visited = 0;
 
         // Recursive backtracking
         // Choose a random starting point
-        let start_x = rng.gen_range(0..self.width);
-        let start_y = rng.gen_range(0..self.height);
+        let start_x = rng.random_range(0..self.width);
+        let start_y = rng.random_range(0..self.height);
         self.grid[start_x][start_y].start = true;
         self.start_cell = (start_x, start_y);
 
@@ -160,16 +160,16 @@ impl Maze {
         let area = self.width * self.height;
         let cells_to_open = area / open_percent as usize;
 
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
 
         // Randomly select cells to open walls from
         for _ in 0..cells_to_open {
             // Pick a random cell
-            let x = rng.gen_range(0..self.width);
-            let y = rng.gen_range(0..self.height);
+            let x = rng.random_range(0..self.width);
+            let y = rng.random_range(0..self.height);
 
             // Get random direction to open a wall
-            let random_dir = rng.gen_range(0..4);
+            let random_dir = rng.random_range(0..4);
             let (dx, dy, dir) = Self::DIRECTIONS[random_dir];
 
             // Calculate neighbor coordinates
@@ -192,16 +192,16 @@ impl Maze {
     // Set end point to opposite edge from start
     // Ensure end is far from start point
     fn set_far_end(&mut self) {
-        let mut rng = rand::thread_rng();
+        let mut rng = rand::rng();
         let (start_x, _start_y) = self.start_cell;
         
         // Determine which edge start is closest to, pick opposite
         let (end_x, end_y) = if start_x < self.width / 2 {
             // Start is on left, end on right
-            (self.width - 1, rng.gen_range(0..self.height))
+            (self.width - 1, rng.random_range(0..self.height))
         } else {
             // Start is on right, end on left
-            (0, rng.gen_range(0..self.height))
+            (0, rng.random_range(0..self.height))
         };
         
         self.grid[end_x][end_y].end = true;
