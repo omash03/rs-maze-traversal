@@ -3,22 +3,24 @@
 use rand::prelude::*;
 use rand::seq::SliceRandom;
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Maze {
     pub width: usize,
     pub height: usize,
     pub start_cell: (usize, usize),
+    // Cell to solve a path to
     pub end_cell: (usize, usize),
     // Outer vector is rows (y), inner vector is columns (x)
     // outer  vector stores pointers to heap-allocated inner vectors
     pub grid: Vec<Vec<Cell>>,
 }
 
-#[derive(Clone, Debug)]
+#[derive(Debug)]
 pub struct Cell {
     pub x: usize,
     pub y: usize,
     pub start: bool,  
+    // Final cell visited by the dfs maze builder
     pub end: bool,
     pub path: bool, // part of solution path
     pub walls: [bool; 4], // top, right, bottom, left (clockwise)
@@ -56,7 +58,7 @@ impl Maze {
     }
 
     /// DFS Maze Generation
-    pub fn dfs_gen(&mut self) {
+    pub fn dfs_gen(&mut self, open_percent: u8) {
 
         let mut rng = rand::thread_rng();
         let mut cells_visited = 0;
@@ -69,6 +71,9 @@ impl Maze {
         self.start_cell = (start_x, start_y);
 
         self.dfs_recurse(start_x, start_y, &mut rng, &mut cells_visited);
+
+        // Add more passages after maze generation
+        self.create_passages(open_percent);
     }
 
 
@@ -93,8 +98,9 @@ impl Maze {
         // Check if this should be the end cell before processing neighbors
         if *cells_visited == self.width * self.height {
             // Mark as end if all cells have been visited
-            self.grid[x][y].end = true;
-            self.end_cell = (x, y);
+            self.end_cell = (x,y);
+            
+            self.set_far_end();
         }
 
         // Unvisited neighbors stack
@@ -136,8 +142,70 @@ impl Maze {
                 self.dfs_recurse(nx, ny, rng, cells_visited);
                 // After recursion returns, loop continues to next neighbor
                 // This only happens if that path is exhausted (backtracking)
+
+                
             }
         }
+        
+    }
+
+    // Open walls to add more than one path to the end point
+    fn create_passages(&mut self, open_percent: u8) {
+
+        // Do nothing if user wants no extra openings
+        if open_percent == 0 {
+            return
+        }
+
+        let area = self.width * self.height;
+        let cells_to_open = area / open_percent as usize;
+
+        let mut rng = rand::thread_rng();
+
+        // Randomly select cells to open walls from
+        for _ in 0..cells_to_open {
+            // Pick a random cell
+            let x = rng.gen_range(0..self.width);
+            let y = rng.gen_range(0..self.height);
+
+            // Get random direction to open a wall
+            let random_dir = rng.gen_range(0..4);
+            let (dx, dy, dir) = Self::DIRECTIONS[random_dir];
+
+            // Calculate neighbor coordinates
+            let nx = x as isize + dx;
+            let ny = y as isize + dy;
+
+            // Check if neighbor is within bounds
+            if nx >= 0 && nx < self.width as isize && ny >= 0 && ny < self.height as isize {
+                let nx = nx as usize;
+                let ny = ny as usize;
+
+                // Open the wall between current cell and neighbor
+                self.grid[x][y].walls[dir] = false;
+                self.grid[nx][ny].walls[(dir + 2) % 4] = false;
+            }
+        }
+
+    }
+
+    // Set end point to opposite edge from start
+    // Ensure end is far from start point
+    fn set_far_end(&mut self) {
+        let mut rng = rand::thread_rng();
+        let (start_x, start_y) = self.start_cell;
+        
+        // Determine which edge start is closest to, pick opposite
+        let (end_x, end_y) = if start_x < self.width / 2 {
+            // Start is on left, end on right
+            (self.width - 1, rng.gen_range(0..self.height))
+        } else {
+            // Start is on right, end on left
+            (0, rng.gen_range(0..self.height))
+        };
+        
+        self.grid[end_x][end_y].end = true;
+        self.end_cell = (end_x, end_y);
     }
 
     // Helper function so we can run multiple traversals on the same maze
@@ -154,8 +222,7 @@ impl Maze {
     pub fn print_maze(maze: &Maze) {
 
     // Make walls 4 wide in console
-    // Need to handle top walls, left walls, right walls, bottom walls
-
+    // Handle top walls, left walls, right walls, bottom walls
     for y in 0..maze.height {
         // Print the top walls
         for x in 0..maze.width {

@@ -24,9 +24,9 @@ fn main() {
         
         // Inner loop to handle all maze generation and traversal user control
         loop {
-            let (size_x, size_y) = get_area();
+            let (size_x, size_y, open_percent) = get_specs();
             let mut maze = maze::Maze::new(size_x, size_y);
-            maze.dfs_gen();
+            maze.dfs_gen(open_percent);
 
             println!();
             println!("Maze Generated!");
@@ -40,37 +40,39 @@ fn main() {
                     exec_bfs(&mut maze);
 
                     let swap_method = get_input("Try DFS now? (Yes/No)");
+                    
                     match parse_response(&swap_method) {
                         
                         UserResponse::Yes => {
                             exec_dfs(&mut maze);
+                            break;
                         }
                         UserResponse::No => {
                             break;
                         }
                         _ => {
-                           println!("Invalid input. Please enter 'Yes'or 'No'");
+                            println!("Invalid input. Please enter 'Yes'or 'No'");
                         }
                     }
-                    break;
                 }
                 "DFS" | "dfs" => {
                     exec_dfs(&mut maze);
 
                     let swap_method = get_input("Try BFS now? (Yes/No)");
+                    
                     match parse_response(&swap_method) {
                         
                         UserResponse::Yes => {
                             exec_bfs(&mut maze);
+                            break;
                         }
                         UserResponse::No => {
                             break;
                         }
                         _ => {
-                           println!("Invalid input. Please enter 'Yes'or 'No'");
+                            println!("Invalid input. Please enter 'Yes'or 'No'");
                         }
                     }
-                    break;
                 }
                 _ => {
                     println!("Invalid input. Please enter 'DFS' or 'BFS'");
@@ -122,25 +124,18 @@ fn get_input(prompt: &str) -> String {
     }
 }
 
-/// Function to get maze size and prevent extraneous input
-fn get_area() -> (usize, usize) {
+/// Function to get maze size and openness
+fn get_specs() -> (usize, usize, u8) {
 
     // Default to size of 50 but user should always be prompted for input
     let mut x = 20;
     let mut y= 20;
+    let mut open_percent: u8 = 0;
 
     loop {
-        println!("Enter the width for the maze between 10-50:");
-
-        let mut input = String::new();
-
-        // Handle errors with result enum returned by read_line()
-        if let Err(_) = io::stdin().read_line(&mut input) {
-            println!("Failed to read input. Try again.");
-            continue;
-        }
+        let num = get_input("Enter the width for the maze between 10-50:");
         
-        match input.trim().parse::<usize>() {
+        match num.trim().parse::<usize>() {
             Ok(num) if num >= 10 && num <= 50 => x = num,
             _ => println!("Invalid input. Please enter a number between 10 and 50."),
         }
@@ -148,23 +143,27 @@ fn get_area() -> (usize, usize) {
     }
 
     loop {
-        println!("Enter the height for the maze between 10-50:");
+        let num = get_input("Enter the height for the maze between 10-50:");
 
-        let mut input = String::new();
-
-        if let Err(_) = io::stdin().read_line(&mut input) {
-            println!("Failed to read input. Try again.");
-            continue;
-        }
-
-        match input.trim().parse::<usize>() {
+        match num.trim().parse::<usize>() {
             Ok(num) if num >= 10 && num <=50 => y = num,
             _ => println!("Invalid input. Please enter a number between 10 and 50."),
         }
         break;
     }
 
-    return (x,y);
+    loop{
+        let num= get_input("Enter the percentage of extra openings 0-50, 0 is pure dfs generation.");
+
+        match num.trim().parse::<u8>() {
+            Ok(num) if (num <= 50) => open_percent = num,
+            _ => println!("Invalid input. Please enter a number between 0 and 50."),
+        }
+        break;
+
+    }
+
+    return (x, y, open_percent);
 }
 
 fn exec_dfs(maze: &mut maze::Maze) {

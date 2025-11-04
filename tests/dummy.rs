@@ -6,8 +6,9 @@ fn dfs_trav(){
 
     let width = 25;
     let height = 25;
+    let open_percent = 10;
     let mut maze2 = maze::new(width, height);
-    maze2.dfs_gen();
+    maze2.dfs_gen(open_percent);
     dfs_traversal::traverse(&mut maze2);
 
     maze::print_maze(&maze2);
@@ -18,9 +19,10 @@ fn bfs_traversal() {
 
     let width = 25;
     let height = 25;
+    let open_percent = 10;
     let mut maze2 = maze::new(width, height);
     
-    maze2.dfs_gen(); // fixed seed for reproducibility
+    maze2.dfs_gen(open_percent); // fixed seed for reproducibility
     
     maze_traversal::bfs_traversal::traverse(&mut maze2);
     
@@ -31,9 +33,10 @@ fn bfs_traversal() {
 fn dfs_maze(){
     let width = 25;
     let height = 25;
+    let open_percent = 10;
     let mut maze2 = maze::new(width, height);
     
-    maze2.dfs_gen(); // fixed seed for reproducibility
+    maze2.dfs_gen(open_percent); // fixed seed for reproducibility
     
     maze::print_maze(&maze2);
 }
