@@ -193,7 +193,7 @@ impl Maze {
     // Ensure end is far from start point
     fn set_far_end(&mut self) {
         let mut rng = rand::thread_rng();
-        let (start_x, start_y) = self.start_cell;
+        let (start_x, _start_y) = self.start_cell;
         
         // Determine which edge start is closest to, pick opposite
         let (end_x, end_y) = if start_x < self.width / 2 {
