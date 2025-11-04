@@ -1,19 +1,16 @@
 // Create a stack (vector and use push/pop)
 use crate::maze::Maze;
-use crate::maze::Cell;
-use rand::seq::SliceRandom;
 
+pub fn traverse(maze: &mut Maze) {
 
-pub fn dfs_traversal(maze: &mut Maze) {
+    maze.reset_visited();
 
     // Enable debug printing
     let debug = false;
 
-    let mut rng = rand::thread_rng();
     // Stack to store cells visited
     let mut stack = Vec::new();
     let start_cell = maze.start_cell;
-    let end_cell = maze.end_cell;
 
     maze.reset_visited();
 

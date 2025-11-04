@@ -18,7 +18,7 @@ pub struct Maze {
 pub struct Cell {
     pub x: usize,
     pub y: usize,
-    pub start: bool,
+    pub start: bool,  
     pub end: bool,
     pub path: bool, // part of solution path
     pub walls: [bool; 4], // top, right, bottom, left (clockwise)
@@ -148,5 +148,62 @@ impl Maze {
                 self.grid[x][y].path = false;
             }
         }
+    }
+
+    // Helper function to print the maze
+    pub fn print_maze(maze: &Maze) {
+
+    // Make walls 4 wide in console
+    // Need to handle top walls, left walls, right walls, bottom walls
+
+    for y in 0..maze.height {
+        // Print the top walls
+        for x in 0..maze.width {
+            if maze.grid[x][y].walls[0] {
+                print!("+---");
+            } else {
+                print!("+   ");
+            }
+        }
+        println!("+");
+
+        // Print the left walls and cell content
+        // Iterate through each cell in the row left to right
+        for x in 0..maze.width {
+            if maze.grid[x][y].walls[3] {
+                print!("|");
+            } else {
+                print!(" ");
+            }
+
+            if maze.grid[x][y].start {
+                print!(" S ");
+            } else if maze.grid[x][y].end {
+                print!(" E ");
+            } else if maze.grid[x][y].path {
+                print!(" X ");
+            } else {
+                print!("   ");
+            }
+        }
+
+        // Print the rightmost wall
+        if maze.grid[maze.width - 1][y].walls[1] {
+            println!("|");
+        } else {
+            println!(" ");
+        }
+    }
+
+    // Print the bottom walls of the last row
+    for x in 0..maze.width {
+        if maze.grid[x][maze.height - 1].walls[2] {
+            print!("+---");
+        } else {
+            print!("+   ");
+        }
+    }
+    println!("+");
+
     }
 }
