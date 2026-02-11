@@ -4,110 +4,178 @@
     CIT360
 */
 
-mod tui_layout; 
-mod dfs_traversal;
-mod bfs_traversal;
-use maze_traversal::maze;
-use std::io::Write;
-use tui_layout::draw;
-
-// Cross platform terminal backend used by RataTUI
-use crossterm;
-use crossterm::event::{Event, KeyCode};
-
-// https://docs.rs/ratatui/latest/ratatui/
-use ratatui;
-
-// Logging since we can't capture stdout/stderr in TUI mode
-use simplelog::{CombinedLogger, Config, LevelFilter, WriteLogger};
-use std::fs::File;
-use log::{info, warn, error, debug};
-
-/*
-    Ensure terminal is restored on panic or normal exit
-    This will be done by implementing the Drop trait for the TermRestore struct
-    Drop trait is called when the struct goes out of scope (RAII)
-*/
-struct TermRestore;
-impl Drop for TermRestore {
-    fn drop(&mut self) {
-        // _ as name since we don't care about the result
-        let _ = crossterm::terminal::disable_raw_mode();
-        let _ = crossterm::execute!(
-            std::io::stdout(),
-            crossterm::terminal::LeaveAlternateScreen,
-            crossterm::cursor::Show
-        );
-    }
-}
+use maze_traversal::{
+    maze as maze,
+    dfs_traversal as dfs_traversal,
+    bfs_traversal as bfs_traversal
+};
+use std::io;
 
 // Result is a type for returning and propagating errors
 // Box is a smart pointer for heap allocation
 // dyn Error is a trait object for error handling
-fn main() -> Result<(), Box<dyn std::error::Error>> {
+fn main() {
 
-    let buttons = tui_layout::get_buttons();
-
-    // Setup logging to file
-    let log_file = File::create("out.log")?;
-    CombinedLogger::init(vec![
-        WriteLogger::new(LevelFilter::Debug, Config::default(), log_file),
-    ])?;
-
-    // Setup terminal and ensure it is restored on exit
-    crossterm::terminal::enable_raw_mode()?;
-    let _term_guard = TermRestore; // Keep in scope for duration of execution
-    let mut terminal = ratatui::init();
-    let mut selected: usize = 0;
-
-    // Clear terminal before entering TUI mode
-    terminal.clear()?;
-
-    // Rendering loop
+    println!("Welcome to the maze generation program!");
+    let _continue_input = get_input("Press Enter to continue.");
+    
+    // Outer loop to check allow user to generate more mazes
     loop {
-        // Draw UI with current selection
-        terminal.draw(|f| draw(f, selected))?;
+        
+        // Inner loop to handle all maze generation and traversal user control
+        loop {
+            let (size_x, size_y, open_percent) = get_specs();
+            let mut maze = maze::Maze::new(size_x, size_y);
+            maze.dfs_gen(open_percent);
 
-        // Handle input (only check every 500ms to reduce CPU usage)
-        if crossterm::event::poll(std::time::Duration::from_millis(500))? {
-            match crossterm::event::read()? {
-                Event::Key(key) => match key.code {
+            println!();
+            println!("Maze Generated!");
+            maze::Maze::print_maze(&maze);
 
-                    // Escape sequence for TUI
-                    KeyCode::Char('q') | KeyCode::Esc => {
-                        info!("Exiting on 'q' or Esc");
-                        break;
-                    }
+            let traversal = get_input("How would you like to traverse? (DFS or BFS)");
+            
+            // Ask use which traversal they would like to use to find a path from start to finish
+            match traversal.as_str() {
+                "BFS" | "bfs" => {
+                    exec_bfs(&mut maze);
 
-                    // Number keys to select buttons
-                    KeyCode::Char(c) if c.is_ascii_digit() => {
-                        let idx = (c as u8 - b'1') as usize;
-                        if idx < buttons.len() {
-                            selected = idx;
-                            info!("Triggered: {} ({})", buttons[selected], selected + 1);
-
-                            // check by index to trigger functions
-                            match idx {
-                                // 1: Generate Maze -> write a simple maze text file
-                                0 => {
-                                    // TODO
-                                }
-                                // 2: Stack Traversal (DFS)
-                                //1 => dfs_traversal::run_dfs(),
-                                // 3: Queue Traversal (BFS)
-                                //2 => bfs_traversal::run_bfs(),
-                                4 => {} //show_slowed
-                                5 => break,
-                                _ => {}
-                            }
+                    let swap_method = get_input("Try DFS now? (Yes/No)");
+                    
+                    match parse_response(&swap_method) {
+                        
+                        UserResponse::Yes => {
+                            exec_dfs(&mut maze);
+                            break;
+                        }
+                        UserResponse::No => {
+                            break;
+                        }
+                        _ => {
+                            println!("Invalid input. Please enter 'Yes'or 'No'");
                         }
                     }
-                    _ => {}
-                },
-                _ => {}
+                }
+                "DFS" | "dfs" => {
+                    exec_dfs(&mut maze);
+
+                    let swap_method = get_input("Try BFS now? (Yes/No)");
+                    
+                    match parse_response(&swap_method) {
+                        
+                        UserResponse::Yes => {
+                            exec_bfs(&mut maze);
+                            break;
+                        }
+                        UserResponse::No => {
+                            break;
+                        }
+                        _ => {
+                            println!("Invalid input. Please enter 'Yes'or 'No'");
+                        }
+                    }
+                }
+                _ => {
+                    println!("Invalid input. Please enter 'DFS' or 'BFS'");
+                }
             }
         }
 
+        let restart = get_input("Generate another maze? (Yes/No)");
+        match restart.as_str() {
+
+            "Yes" | "yes" | "Y" | "y" => {
+                println!();
+                continue
+            }
+            _ => {
+                println!("Exiting program.");
+                break;
+            }
+        }
     }
-    Ok(())
+}
+
+// Simple rusty way to parse yes no input
+enum UserResponse {
+    Yes,
+    No,
+    Invalid,
+}
+fn parse_response(input: &str) -> UserResponse {
+    match input {
+        "Yes" | "yes" | "Y" | "y" => UserResponse::Yes,
+        "No" | "no" | "N" | "n" => UserResponse::No,
+        _ => UserResponse::Invalid,
+    }
+}
+
+fn get_input(prompt: &str) -> String {
+    loop {
+        println!("{}", prompt);
+
+        let mut input = String::new();
+
+        if let Err(_) = io::stdin().read_line(&mut input) {
+            println!("Failed to read input. Try again.");
+            continue;
+        }
+
+        return input.trim().to_string();
+    }
+}
+
+/// Function to get maze size and openness
+fn get_specs() -> (usize, usize, u8) {
+
+    // Default to size of 50 but user should always be prompted for input
+    let mut x = 20;
+    let mut y= 20;
+    let mut open_percent: u8 = 0;
+
+    loop {
+        let num = get_input("Enter the width for the maze between 10-50:");
+        
+        match num.trim().parse::<usize>() {
+            Ok(num) if num >= 10 && num <= 50 => x = num,
+            _ => println!("Invalid input. Please enter a number between 10 and 50."),
+        }
+        break;
+    }
+
+    loop {
+        let num = get_input("Enter the height for the maze between 10-50:");
+
+        match num.trim().parse::<usize>() {
+            Ok(num) if num >= 10 && num <=50 => y = num,
+            _ => println!("Invalid input. Please enter a number between 10 and 50."),
+        }
+        break;
+    }
+
+    loop{
+        let num= get_input("Enter the percentage of extra openings 0-50, 0 is pure dfs generation.");
+
+        match num.trim().parse::<u8>() {
+            Ok(num) if (num <= 50) => open_percent = num,
+            _ => println!("Invalid input. Please enter a number between 0 and 50."),
+        }
+        break;
+
+    }
+
+    return (x, y, open_percent);
+}
+
+fn exec_dfs(maze: &mut maze::Maze) {
+    println!();
+    println!("DFS Traversal");
+    dfs_traversal::traverse(maze);
+    maze::Maze::print_maze(maze);
+}
+
+fn exec_bfs(maze: &mut maze::Maze) {
+    println!();
+    println!("BFS Traversal");
+    bfs_traversal::traverse(maze);
+    maze::Maze::print_maze(&maze);
 }

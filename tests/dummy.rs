@@ -1,38 +1,42 @@
-use maze_traversal::maze::Maze;
-
+use maze_traversal::maze::Maze as maze;
+use maze_traversal::dfs_traversal;
 
 #[test]
-fn simple_gen() {
-    let width = 50;
-    let height = 50;
-    let mut maze1 = Maze::new(width, height);
+fn dfs_trav(){
+
+    let width = 25;
+    let height = 25;
+    let open_percent = 10;
+    let mut maze2 = maze::new(width, height);
+    maze2.dfs_gen(open_percent);
+    dfs_traversal::traverse(&mut maze2);
+
+    maze::print_maze(&maze2);
+}
+
+#[test]
+fn bfs_traversal() {
+
+    let width = 25;
+    let height = 25;
+    let open_percent = 10;
+    let mut maze2 = maze::new(width, height);
     
-    maze1.basic_generate(450); // fixed seed for reproducibility
+    maze2.dfs_gen(open_percent); // fixed seed for reproducibility
     
-    print_maze(&maze1);
+    maze_traversal::bfs_traversal::traverse(&mut maze2);
+    
+    maze::print_maze(&maze2);
 }
 
 #[test]
 fn dfs_maze(){
-    let width = 21;
-    let height = 21;
-    let mut maze2 = Maze::new(width, height);
+    let width = 25;
+    let height = 25;
+    let open_percent = 10;
+    let mut maze2 = maze::new(width, height);
     
-    maze2.dfs_generate(12345); // fixed seed for reproducibility
+    maze2.dfs_gen(open_percent); // fixed seed for reproducibility
     
-    print_maze(&maze2);
+    maze::print_maze(&maze2);
 }
-
-fn print_maze(maze: &Maze) {
-    for row in &maze.grid {
-        for cell in row {
-            if cell.path {
-                print!("  ");  // two spaces for open path
-            } else {
-                print!("██");  // solid block for wall
-            }
-        }
-        println!();
-    }
-}
-

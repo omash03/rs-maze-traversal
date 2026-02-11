@@ -7,8 +7,4 @@ edition = "2024"
 path = "src/lib.rs"
 
 [dependencies]
-crossterm = "0.29.0"
-log = "0.4.28"
-ratatui = "0.29.0"
-simplelog = "0.12.2"
-rand = "0.8"
+rand = "0.9.1"
